@@ -1,0 +1,49 @@
+# aicost — теги затрат на AI: team / feature / env.
+#
+# Принцип тегирования: затраты привязываются к billing-источникам провайдера —
+# Anthropic workspace / API key, OpenAI project. Чтобы атрибуция работала,
+# заводите ОТДЕЛЬНЫЙ API-ключ (или workspace/project) на каждую комбинацию
+# фича+окружение, и описывайте маппинг здесь.
+
+default_tags:
+  team: untagged
+  feature: untagged
+  env: unknown
+
+anthropic:
+  admin_key_env: ANTHROPIC_ADMIN_KEY   # ключ sk-ant-admin... (Console -> Settings -> Admin keys)
+
+  # Теги на workspace — используются в -mode cost и как fallback для ключей.
+  workspaces:
+    wrkspc_01JwQvzr7rXLA5AGx3HKfFUJ:
+      team: backend
+      env: prod
+    # default:                          # дефолтный workspace (workspace_id = null)
+    #   team: platform
+    #   env: dev
+
+  # Теги на отдельные API-ключи — используются в -mode usage (per-key attribution).
+  # ID ключей: GET /v1/organizations/api_keys или Console.
+  api_keys:
+    apikey_01Rj2N8SVvo6BePZj99NhmiT:
+      team: backend
+      feature: chat-assistant
+      env: prod
+    apikey_01ABC123DEF456GHI789JKL:
+      team: data
+      feature: rag-pipeline
+      env: staging
+
+openai:
+  admin_key_env: OPENAI_ADMIN_KEY
+  projects:
+    proj_abc123:
+      team: backend
+      feature: summarizer
+      env: prod
+
+# Цены для -mode usage (USD за 1M токенов). Актуальные модели Claude уже
+# встроены; здесь можно переопределить или добавить недостающие.
+# cache_read / cache_write_* по умолчанию: 0.1x / 1.25x / 2x от input.
+pricing: {}
+#  claude-opus-4-8: {input: 5, output: 25}
