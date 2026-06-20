@@ -4,6 +4,43 @@ A CLI for AI cost management: pulls spend from provider billing APIs
 (Anthropic, OpenAI), attributes it to **team / feature / env** tags via a
 config file, and produces reports.
 
+## Quick demo
+
+No API keys needed — run the full pipeline against sample data:
+
+```sh
+cd aicost
+go build -o aicost.exe .
+
+# tags are resolved from this file
+cp config.example.yaml config.yaml
+
+# run the CLI on bundled test data
+./aicost -fixture fixture.example.json -group team,feature,env
+```
+
+Output:
+
+```text
+TEAM      FEATURE         ENV              USD
+backend   chat-assistant  prod           80.65
+data      rag-pipeline    staging        11.20
+backend   summarizer      prod            7.80
+untagged  untagged        unknown         6.45
+----------------------------------------------
+TOTAL                                   106.10
+```
+
+The same pipeline runs against live billing data once you provide an admin key
+(see [Setup](#setup)) — only the data source changes, the tagging and reports
+are identical. More group/format variations:
+
+```sh
+./aicost -fixture fixture.example.json -group provider,model
+./aicost -fixture fixture.example.json -group date,source -format csv
+./aicost -fixture fixture.example.json -untagged
+```
+
 ## How it works
 
 Providers don't know about your features and teams — they bill by their own
@@ -65,18 +102,14 @@ Flags: `-config`, `-from`, `-to`, `-group` (team,feature,env,provider,model,date
 
 ## Local testing without admin keys
 
-You don't need provider admin keys to verify the tool works. Two options:
+The [Quick demo](#quick-demo) above already runs the CLI on bundled data via
+`-fixture`. Fixture mode loads records from a JSON file and re-resolves their
+tags through your `config.yaml`, so every `-group` / `-format` / `-untagged`
+path is exercised without touching the network.
 
 ```sh
-# 1. Unit tests (aggregation, tagging, pricing, rendering)
+# Unit tests (aggregation, tagging, pricing, rendering)
 go test ./...
-
-# 2. Run the full CLI against sample records loaded from a JSON file.
-#    Tags are re-resolved through your config.yaml, so the mapping is
-#    exercised too — every -group / -format / -untagged path works.
-cp config.example.yaml config.yaml
-./aicost -fixture fixture.example.json -group team,feature,env
-./aicost -fixture fixture.example.json -untagged
 ```
 
 Each fixture record needs `provider`, `source` (`"<kind>:<id>"`, where kind is
