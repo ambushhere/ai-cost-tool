@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"flag"
 	"fmt"
 	"os"
@@ -21,12 +22,24 @@ func main() {
 		format       = flag.String("format", "table", "table | csv | json")
 		providersStr = flag.String("providers", "", "comma-separated: anthropic,openai (default: every provider whose admin key env var is set)")
 		showUntagged = flag.Bool("untagged", false, "list billing sources that have no tags in the config, then exit")
+		fixturePath  = flag.String("fixture", "", "load records from a JSON file instead of calling provider APIs (for local testing without admin keys)")
 	)
 	flag.Parse()
 
 	cfg, err := loadConfig(*cfgPath)
 	if err != nil {
 		fatal("config: %v", err)
+	}
+
+	// Fixture mode: skip all provider APIs, load records from disk and
+	// re-resolve tags through the config so the full pipeline is exercised.
+	if *fixturePath != "" {
+		records, err := loadFixture(cfg, *fixturePath)
+		if err != nil {
+			fatal("fixture: %v", err)
+		}
+		emit(cfg, records, *showUntagged, *groupStr, *mode, *format)
+		return
 	}
 
 	from, to, err := parseRange(*fromStr, *toStr)
@@ -72,12 +85,18 @@ func main() {
 		records = append(records, recs...)
 	}
 
-	if *showUntagged {
+	emit(cfg, records, *showUntagged, *groupStr, *mode, *format)
+}
+
+// emit runs the report pipeline (untagged listing, aggregation, rendering)
+// shared by the live-API path and fixture mode.
+func emit(cfg *Config, records []Record, showUntagged bool, groupStr, mode, format string) {
+	if showUntagged {
 		printUntagged(records)
 		return
 	}
 
-	dims := splitList(*groupStr)
+	dims := splitList(groupStr)
 	for _, d := range dims {
 		if !validDims[d] {
 			fatal("unknown dimension %q (valid: team, feature, env, provider, model, date, source)", d)
@@ -85,10 +104,10 @@ func main() {
 	}
 	rows := aggregate(records, dims)
 
-	switch *format {
+	switch format {
 	case "table":
 		renderTable(os.Stdout, dims, rows)
-		if *mode == "usage" {
+		if mode == "usage" {
 			fmt.Fprintln(os.Stdout, "\n(USD values are estimates: token counts x pricing table, excludes discounts/credits/server tools)")
 		}
 	case "csv":
@@ -100,10 +119,40 @@ func main() {
 			fatal("json: %v", err)
 		}
 	default:
-		fatal("unknown format %q", *format)
+		fatal("unknown format %q", format)
 	}
 
 	warnUntagged(records)
+}
+
+// loadFixture reads records from a JSON file and re-resolves their tags
+// through the config, so the tagging mapping is exercised too. Each fixture
+// record needs at least provider, source ("<kind>:<id>"), usd; model is
+// optional. The tags/tagged fields are recomputed from the config.
+func loadFixture(cfg *Config, path string) ([]Record, error) {
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+	var records []Record
+	if err := json.Unmarshal(raw, &records); err != nil {
+		return nil, err
+	}
+	for i := range records {
+		r := &records[i]
+		kind, id, _ := strings.Cut(r.Source, ":")
+		switch kind {
+		case "workspace":
+			r.Tags, r.Tagged = cfg.tagsFor("anthropic", "workspace", id)
+		case "api_key":
+			r.Tags, r.Tagged = cfg.tagsFor("anthropic", "api_key", id)
+		case "project":
+			r.Tags, r.Tagged = cfg.tagsFor("openai", "project", id)
+		default:
+			r.Tags = r.Tags.withDefaults(cfg.DefaultTags)
+		}
+	}
+	return records, nil
 }
 
 func parseRange(fromStr, toStr string) (time.Time, time.Time, error) {

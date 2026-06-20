@@ -60,7 +60,33 @@ go build -o aicost.exe .
 ```
 
 Flags: `-config`, `-from`, `-to`, `-group` (team,feature,env,provider,model,date,source),
-`-mode cost|usage`, `-format table|csv|json`, `-providers anthropic,openai`, `-untagged`.
+`-mode cost|usage`, `-format table|csv|json`, `-providers anthropic,openai`, `-untagged`,
+`-fixture`.
+
+## Local testing without admin keys
+
+You don't need provider admin keys to verify the tool works. Two options:
+
+```sh
+# 1. Unit tests (aggregation, tagging, pricing, rendering)
+go test ./...
+
+# 2. Run the full CLI against sample records loaded from a JSON file.
+#    Tags are re-resolved through your config.yaml, so the mapping is
+#    exercised too — every -group / -format / -untagged path works.
+cp config.example.yaml config.yaml
+./aicost -fixture fixture.example.json -group team,feature,env
+./aicost -fixture fixture.example.json -untagged
+```
+
+Each fixture record needs `provider`, `source` (`"<kind>:<id>"`, where kind is
+`workspace` / `api_key` / `project`), and `usd`; `model` and `date` are
+optional. See `fixture.example.json` for the shape.
+
+> Note: a plain DeepSeek/OpenAI inference key won't work as a data source —
+> this tool reads provider *billing* APIs (cost/usage reports grouped by
+> key/workspace/project), which inference keys don't expose. Use fixture mode
+> to test the pipeline locally.
 
 ## Modes
 

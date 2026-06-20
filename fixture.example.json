@@ -1,0 +1,8 @@
+[
+  {"date": "2026-06-18", "provider": "anthropic", "source": "api_key:apikey_01Rj2N8SVvo6BePZj99NhmiT", "model": "claude-opus-4-8", "usd": 42.10},
+  {"date": "2026-06-19", "provider": "anthropic", "source": "api_key:apikey_01Rj2N8SVvo6BePZj99NhmiT", "model": "claude-opus-4-8", "usd": 38.55},
+  {"date": "2026-06-19", "provider": "anthropic", "source": "api_key:apikey_01ABC123DEF456GHI789JKL", "model": "claude-sonnet-4-6", "usd": 11.20},
+  {"date": "2026-06-19", "provider": "anthropic", "source": "workspace:default", "model": "claude-haiku-4-5", "usd": 2.05},
+  {"date": "2026-06-18", "provider": "openai", "source": "project:proj_abc123", "usd": 7.80},
+  {"date": "2026-06-19", "provider": "openai", "source": "project:proj_unknown_999", "usd": 4.40}
+]
